@@ -1,0 +1,19 @@
+{
+  "main": {
+    "Fullbau": 4,
+    "Blaster Javelin": 4,
+    "Nightmare Painter": 4,
+    "Dark Shield, Mac Lir": 4,
+    "Blaster Dark": 4,
+    "Skull Witch, Nemain": 4,
+    "Moonlight Witch, Vaha": 2,
+    "Phantom Blaster Dragon": 4,
+    "Witch of Nostrum, Arianrhod": 4
+  },
+  "triggers": {
+    "Abyss Healer": 4,
+    "Death Feather Eagle": 4,
+    "Abyss Freezer": 4,
+    "Grim Reaper": 4
+  }
+}
