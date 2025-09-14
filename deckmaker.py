@@ -251,6 +251,11 @@ class Editor(QMainWindow):
 
 
         # Save / Export buttons
+        
+        self.clear_button = QPushButton("Clear Deck")
+        self.clear_button.clicked.connect(self.clear_deck)
+        deck_manager_row.addWidget(self.clear_button)
+        
         self.save_deck_btn = QPushButton("Save/Update Deck")
         self.save_deck_btn.clicked.connect(self.save_named_deck)
         deck_manager_row.addWidget(self.save_deck_btn)
@@ -915,6 +920,19 @@ class Editor(QMainWindow):
             f"Clan: {card.get('clan','')}\n"
             f"Trigger: {card.get('trigger') or '—'}"
         )
+
+    def clear_deck(self):
+        # Clear the internal deck data
+        self.deck.main.clear()
+        self.deck.triggers.clear()
+
+        # Clear the QListWidgets
+        self.main_list.clear()
+        self.trig_list.clear()
+
+        # Reset labels
+        self.main_label.setText("Main Deck (0/??)")   # adjust max as needed
+        self.trig_label.setText("Triggers (0/16)")
 
 
 if __name__ == "__main__":
