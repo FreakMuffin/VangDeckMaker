@@ -1,8 +1,11 @@
 import sys, os, json, hashlib, math
+import re
+import requests
+import threading
 from collections import Counter
 from PySide6.QtWidgets import (
     QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
-    QListWidget, QListWidgetItem, QLabel, QLineEdit, QPushButton,
+    QListWidget, QListWidgetItem, QLabel, QTextEdit, QLineEdit, QPushButton,
     QSplitter, QScrollArea, QSizePolicy, QMessageBox, QComboBox,
     QFileDialog
 )
@@ -12,16 +15,19 @@ from PIL import Image
 
 # --- Config constants ---
 CARD_DB_PATH = "ridecore_cards.json"
-REMOTE_BASE = "https://drive.google.com/drive/folders/11bjDuem3_Xf4-yPIXoPk8kpVB3pr1Nqb?usp=sharing"
+REMOTE_BASE = "https://FreakMuffin.github.io/VangDeckMaker/"
 
-GALLERY_ICON_W, GALLERY_ICON_H = 100, 140
-DECK_ICON_W, DECK_ICON_H = 60, 84
+GALLERY_ICON_W, GALLERY_ICON_H = 50, 70
+DECK_ICON_W, DECK_ICON_H = 100, 140
+
+MAIN_GRID_W, MAIN_GRID_H = 70, 100
+TRIG_GRID_W, TRIG_GRID_H = 70, 100
 
 THUMB_DIR = "thumbs_cache"
-THUMB_SIZE = (GALLERY_ICON_W, GALLERY_ICON_H)
+THUMB_SIZE = (DECK_ICON_W, DECK_ICON_H)
 DEBOUNCE_MS = 300
 
-MAIN_LIMIT = 34
+MAIN_LIMIT = 38
 TRIGGER_LIMIT = 16
 MAX_COPIES = 4
 
@@ -44,7 +50,7 @@ def load_card_db(path):
         data = json.load(f)
     db = {}
     for c in data:
-        c = dict(c)
+
         trig = c.get("type", "").strip()
         if trig in ["Critical", "Draw", "Stand", "Heal"]:
             c["trigger"] = trig
@@ -103,6 +109,9 @@ def get_cached_pixmap(path):
         pm.fill(Qt.lightGray)
         return pm
 
+def natural_key(s):
+    """Sort strings containing numbers in human order."""
+    return [int(text) if text.isdigit() else text for text in re.split(r'(\d+)', s)]
 
 # --- Deck Data ---
 class Deck:
@@ -153,7 +162,12 @@ class Editor(QMainWindow):
     def __init__(self):
         super().__init__()
         self.setWindowTitle("Deck Editor")
-        self.resize(1200, 800)
+        self.resize(1200, 720)
+        
+        # --- Lazy load state (must come BEFORE refresh_gallery) ---
+        self.batch_size = 50       # load 50 cards at a time
+        self.loaded_count = 0      # how many are shown right now
+        self.filtered_cache = []   # stores last filter results
 
         try:
             self.card_db = load_card_db(CARD_DB_PATH)
@@ -163,78 +177,99 @@ class Editor(QMainWindow):
 
         self.deck = Deck()
         self.pixmap_cache = {}
+        self.preload_all_images()
 
         central = QWidget()
         self.setCentralWidget(central)
         outer = QVBoxLayout(central)
 
-        # --- Search & Filters ---
-        filter_row = QHBoxLayout()
-        self.search = QLineEdit()
-        self.search.setPlaceholderText("Search by name...")
-        filter_row.addWidget(QLabel("Search:"))
-        filter_row.addWidget(self.search, 2)
-
-        self.filter_grade = QComboBox()
-        self.filter_grade.addItems(["Any Grade", "0", "1", "2", "3"])
-        filter_row.addWidget(QLabel("Grade:"))
-        filter_row.addWidget(self.filter_grade)
-
-        self.filter_trigger = QComboBox()
-        self.filter_trigger.addItems(
-            ["Any Trigger", "Critical", "Draw", "Stand", "Heal", "Non-Trigger"]
-        )
-        filter_row.addWidget(QLabel("Trigger:"))
-        filter_row.addWidget(self.filter_trigger)
-        
-        # --- Clan Filter ---
-        self.filter_clan = QComboBox()
-        # First item is "Any Clan"
-        clans = sorted({card.get("clan", "") for card in self.card_db.values() if card.get("clan")})
-        self.filter_clan.addItem("Any Clan")
-        self.filter_clan.addItems(clans)
-        filter_row.addWidget(QLabel("Clan:"))
-        filter_row.addWidget(self.filter_clan)
-        self.filter_clan.currentIndexChanged.connect(self.refresh_gallery)
-
-
-
-        outer.addLayout(filter_row)
-
         # search debounce
         self.search_timer = QTimer(self)
         self.search_timer.setSingleShot(True)
         self.search_timer.timeout.connect(self.refresh_gallery)
-        self.search.textChanged.connect(lambda _: self.search_timer.start(DEBOUNCE_MS))
-        self.filter_grade.currentIndexChanged.connect(self.refresh_gallery)
-        self.filter_trigger.currentIndexChanged.connect(self.refresh_gallery)
-
+        
         # --- Splitter ---
         splitter = QSplitter()
         outer.addWidget(splitter)
 
-        # Left: Gallery
-        self.gallery = QListWidget()
-        self.gallery.itemDoubleClicked.connect(self.gallery_double_click)
-        splitter.addWidget(self.gallery)
+        # Info panel (container for image + text)
+        info_panel = QWidget()
+        info_layout = QVBoxLayout(info_panel)
+        info_layout.setContentsMargins(0, 0, 0, 0)
+        info_layout.setSpacing(2)
+        
 
-        # --- Lazy load state ---
-        self.batch_size = 50       # load 50 cards at a time
-        self.loaded_count = 0      # how many are shown right now
-        self.filtered_cache = []   # stores last filter results
+        # Large card image
+        self.info_image = QLabel()
+        self.info_image.setFixedSize(339, 495)  # Fixed size image
+        self.info_image.setAlignment(Qt.AlignCenter)
+        self.info_image.setStyleSheet("border: 1px solid gray;")
+        info_layout.addWidget(self.info_image)
+        
+        # Card name label (bold)
+        self.info_name = QLabel()
+        self.info_name.setAlignment(Qt.AlignCenter)
+        self.info_name.setStyleSheet("font-weight: bold; font-size: 16px; padding: 0px;")
 
-        # Detect scroll to bottom
-        self.gallery.verticalScrollBar().valueChanged.connect(self.check_scroll)
+        fm = self.info_name.fontMetrics()
+        text_height = fm.height()
+        self.info_name.setFixedHeight(text_height)
+        self.info_name.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
+        info_layout.addWidget(self.info_name)
 
 
-        # Right: Deck lists
+        # Card info text (clan / power / shield / effect)
+        self.info_text = QTextEdit()
+        self.info_text.setReadOnly(True)
+        self.info_text.setFixedHeight(140)
+        self.info_text.setFixedWidth(self.info_image.width())  # 👈 Match image width
+        info_layout.addWidget(self.info_text)
+
+        splitter.addWidget(info_panel)
+
+
+
+        # Middle: Deck list
         deck_panel = QWidget()
         deck_layout = QVBoxLayout(deck_panel)
+        deck_layout.setContentsMargins(0, 0, 0, 0)
+        deck_layout.setSpacing(5)
         splitter.addWidget(deck_panel)
+        
+        # --- Deck Manager UI ---
+        deck_manager_row = QHBoxLayout()
+
+        # Editable deck selector (acts as both input and dropdown)
+        self.deck_name_input = QComboBox()
+        self.deck_name_input.setEditable(True)  # allows typing new deck names
+        self.deck_name_input.setInsertPolicy(QComboBox.NoInsert)  # optional: only programmatically insert
+        self.deck_name_input.setPlaceholderText("Enter or select deck name")
+        
+        deck_manager_row.addWidget(self.deck_name_input)
+        
+        self.deck_name_input.activated.connect(self.load_selected_deck_by_name)
+
+
+        # Save / Export buttons
+        self.save_deck_btn = QPushButton("Save/Update Deck")
+        self.save_deck_btn.clicked.connect(self.save_named_deck)
+        deck_manager_row.addWidget(self.save_deck_btn)
+
+        self.export_sheets_btn = QPushButton("Export to Proxy")
+        self.export_sheets_btn.clicked.connect(self.export_current_deck_to_sheets)
+        deck_manager_row.addWidget(self.export_sheets_btn)
+
+        deck_layout.addLayout(deck_manager_row)
+
+        # --- Put it here ---
+        # info_panel.setFixedWidth(339)      # lock the left panel width
+        splitter.setStretchFactor(0, 2)   # info panel
+        splitter.setStretchFactor(1, 5)   # deck panel (wider now)
+        splitter.setStretchFactor(2, 1)   # gallery (narrowest)
 
         # Main row: Main label + grade counters
         main_row = QHBoxLayout()
-        self.main_label = QLabel("Main (0/34)")
+        self.main_label = QLabel("Main (0/38)")
         main_row.addWidget(self.main_label)
 
         # Grade counters
@@ -256,32 +291,94 @@ class Editor(QMainWindow):
         deck_layout.addLayout(main_row)
                 
         self.main_list = QListWidget()
-        deck_layout.addWidget(self.main_list)
+        self.main_list.setViewMode(QListWidget.IconMode)       # Show as icons
+        self.main_list.setFlow(QListWidget.LeftToRight)        # Flow horizontally
+        self.main_list.setResizeMode(QListWidget.Adjust)       # Auto-wrap
+        self.main_list.setIconSize(QSize(60, 84))            # Bigger thumbnails
+        self.main_list.setGridSize(QSize(70, 100))            # Thumbnail + name space
+        self.main_list.setWrapping(True)
+        self.main_list.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
+
+        deck_layout.addWidget(self.main_list, stretch=2)
 
         self.trig_label = QLabel("Triggers (0/16)")
         deck_layout.addWidget(self.trig_label)
+        
+        
+        # Trigger Deck list (gallery style)
         self.trig_list = QListWidget()
+        self.trig_list.setViewMode(QListWidget.IconMode)
+        self.trig_list.setFlow(QListWidget.LeftToRight)
+        self.trig_list.setResizeMode(QListWidget.Adjust)
+        self.trig_list.setIconSize(QSize(60, 84))
+        self.trig_list.setGridSize(QSize(70, 100))
+        self.trig_list.setWrapping(True)
+        self.trig_list.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
+
         deck_layout.addWidget(self.trig_list)
+        deck_layout.addWidget(self.trig_list, stretch=1)
         
-        # --- Deck Manager UI ---
-        deck_manager_row = QHBoxLayout()
-        self.deck_name_input = QLineEdit()
-        self.deck_name_input.setPlaceholderText("Enter deck name")
-        deck_manager_row.addWidget(self.deck_name_input)
+        # Right: Gallery
+        gallery_panel = QWidget()
+        gallery_layout = QVBoxLayout(gallery_panel)
+        gallery_layout.setContentsMargins(0, 0, 0, 0)
+        gallery_layout.setSpacing(5)
+        splitter.addWidget(gallery_panel)
 
-        self.save_deck_btn = QPushButton("Save/Update Deck")
-        self.save_deck_btn.clicked.connect(self.save_named_deck)
-        deck_manager_row.addWidget(self.save_deck_btn)
+        # --- Filters (stacked vertically) ---
+        self.filter_grade = QComboBox()
+        self.filter_grade.addItems(["Any Grade", "0", "1", "2", "3"])
+        gallery_layout.addWidget(self.filter_grade)
+        self.filter_grade.currentIndexChanged.connect(self.refresh_gallery)
+
+        self.filter_trigger = QComboBox()
+        self.filter_trigger.addItems(["Any Trigger", "Critical", "Draw", "Stand", "Heal", "Non-Trigger"])
+        gallery_layout.addWidget(self.filter_trigger)
+        self.filter_trigger.currentIndexChanged.connect(self.refresh_gallery)
+
+        # Clan filter
+        self.filter_clan = QComboBox()
+        clans = sorted({card.get("clan","") for card in self.card_db.values() if card.get("clan")})
+        self.filter_clan.addItem("Any Clan")
+        self.filter_clan.addItems(clans)
+        gallery_layout.addWidget(self.filter_clan)
+        self.filter_clan.currentIndexChanged.connect(self.refresh_gallery)
         
-        self.export_sheets_btn = QPushButton("Export to Proxy")
-        self.export_sheets_btn.clicked.connect(self.export_current_deck_to_sheets)
-        deck_manager_row.addWidget(self.export_sheets_btn)
+        # Set filter
+        self.filter_set = QComboBox()
+        sets = sorted({card.get("set","") for card in self.card_db.values() if card.get("set")}, key=natural_key)
+        self.filter_set.addItem("Any Set")
+        self.filter_set.addItems(sets)
+        gallery_layout.addWidget(self.filter_set)
+        self.filter_set.currentIndexChanged.connect(self.refresh_gallery)
+        
+        # --- Search Bar ---
+        search_row = QHBoxLayout()
+        self.search = QLineEdit()
+        self.search.setPlaceholderText("Search card by name...")
+        search_row.addWidget(self.search, 2)
+        
+        self.search.textChanged.connect(lambda _: self.search_timer.start(DEBOUNCE_MS))
 
-        self.deck_dropdown = QComboBox()
-        self.deck_dropdown.currentIndexChanged.connect(self.load_selected_deck)
-        deck_manager_row.addWidget(self.deck_dropdown)
+        gallery_layout.addLayout(search_row)
 
-        deck_layout.addLayout(deck_manager_row)
+        # --- Gallery List ---
+        self.gallery = QListWidget()
+        self.gallery.setViewMode(QListWidget.ListMode)       # vertical list
+        self.gallery.setFlow(QListWidget.TopToBottom)        # top-to-bottom flow
+        self.gallery.setResizeMode(QListWidget.Adjust)       # adjust item sizes
+        self.gallery.setWrapping(False)                      # no horizontal wrapping
+        self.gallery.setIconSize(QSize(GALLERY_ICON_W, GALLERY_ICON_H))
+        self.gallery.itemDoubleClicked.connect(self.gallery_double_click)
+
+        gallery_layout.addWidget(self.gallery)
+
+        # Detect scroll to bottom
+        self.gallery.verticalScrollBar().valueChanged.connect(self.check_scroll)
+
+        
+
+
         
         self.main_list.setContextMenuPolicy(Qt.CustomContextMenu)
         self.main_list.customContextMenuRequested.connect(
@@ -292,10 +389,75 @@ class Editor(QMainWindow):
         self.trig_list.customContextMenuRequested.connect(
         lambda pos: self.remove_on_right_click(self.trig_list, "triggers", pos)
         )
+        
+        
+        # --- Add hover connections for info panel ---
+        for lst in [self.main_list, self.trig_list, self.gallery]:
+            lst.setMouseTracking(True)
+            lst.itemClicked.connect(self.show_card_info)
+            lst.itemEntered.connect(self.show_card_info)
 
         self.refresh_gallery()
         self.refresh_deck_lists()
         self.refresh_deck_list_dropdown()
+        
+
+    def get_card_by_name(self, name):
+        return self.card_db.get(name)
+        
+    def show_card_info(self, item):
+        card_name = item.data(Qt.UserRole)
+        card = self.get_card_by_name(card_name)
+
+        if not card:
+            self.info_image.clear()
+            self.info_text.setPlainText("Card not found.")
+            return
+
+
+        # Update card name
+        self.info_name.setText(card.get("name", "Unknown"))
+        
+        # Load ORIGINAL image instead of cached thumbnail
+        image_rel_path = card.get("image", "")
+        if image_rel_path:
+            full_path = os.path.join(os.path.dirname(CARD_DB_PATH), image_rel_path)
+            if os.path.exists(full_path):
+                pm = QPixmap(full_path)  # load directly from file, full quality
+                pm_scaled = pm.scaled(
+                    self.info_image.size(),
+                    Qt.KeepAspectRatio,
+                    Qt.SmoothTransformation
+                )
+                self.info_image.setPixmap(pm_scaled)
+            else:
+                self.info_image.clear()
+        else:
+            self.info_image.clear()
+
+        # Build info text
+        info_lines = []
+
+        if "clan" in card and card["clan"]:
+            info_lines.append(f"Clan: {card['clan']}")
+
+        stats = []
+        if "power" in card and card["power"]:
+            stats.append(f"Power: {card['power']}")
+        if "shield" in card and card["shield"]:
+            stats.append(f"Shield: {card['shield']}")
+        if stats:
+            info_lines.append(" | ".join(stats))
+
+        effect_text = card.get("effect", "No effects")
+        if isinstance(effect_text, list):
+            effect_text = "\n".join(effect_text)
+        info_lines.append(effect_text)
+
+        self.info_text.setPlainText("\n".join(info_lines))
+
+
+
 
         
     def ensure_deck_folder(self):
@@ -307,51 +469,81 @@ class Editor(QMainWindow):
 
     def refresh_deck_list_dropdown(self):
         self.ensure_deck_folder()
-        self.deck_dropdown.blockSignals(True)
-        self.deck_dropdown.clear()
-        decks = [f[:-len(DECK_EXT)] for f in os.listdir(DECK_FOLDER) if f.endswith(DECK_EXT)]
-        self.deck_dropdown.addItems(decks)
-        self.deck_dropdown.blockSignals(False)
 
-        # auto-load the first deck if available
-        if decks:
-            self.deck_dropdown.setCurrentIndex(0)
-            self.load_selected_deck(0)
+        # Keep the current text typed by the user
+        current_text = self.deck_name_input.currentText() if self.deck_name_input else ""
+
+        self.deck_name_input.blockSignals(True)
+        self.deck_name_input.clear()
+
+        # Add existing decks to the dropdown
+        decks = [f[:-len(DECK_EXT)] for f in os.listdir(DECK_FOLDER) if f.endswith(DECK_EXT)]
+        self.deck_name_input.addItems(decks)
+        
+        # Restore the text the user typed, if any
+        if current_text:
+            index = self.deck_name_input.findText(current_text)
+            if index >= 0:
+                self.deck_name_input.setCurrentIndex(index)
+            else:
+                self.deck_name_input.setEditText(current_text)
+        elif decks:
+            # If no typed text, auto-select first deck
+            self.deck_name_input.setCurrentIndex(0)
+            self.load_selected_deck_by_name(0)
+
+        self.deck_name_input.blockSignals(False)
+
 
     def save_named_deck(self):
-        name = self.deck_name_input.text().strip()
+        name = self.deck_name_input.currentText().strip()  # use currentText for editable combo box
         if not name:
             QMessageBox.warning(self, "No Name", "Please enter a deck name.")
             return
+
         path = self.deck_file_path(name)
         data = {
             "main": dict(self.deck.main),
             "triggers": dict(self.deck.triggers)
         }
+
         try:
             with open(path, "w", encoding="utf-8") as f:
                 json.dump(data, f, ensure_ascii=False, indent=2)
-            self.refresh_deck_list_dropdown()
+
+            # Add the new deck name to the dropdown if not already there
+            index = self.deck_name_input.findText(name)
+            if index == -1:
+                self.deck_name_input.addItem(name)
+
+            # Select it
+            self.deck_name_input.setCurrentText(name)
+
             QMessageBox.information(self, "Deck Saved", f"Deck '{name}' saved successfully!")
+
         except Exception as e:
             QMessageBox.critical(self, "Error", f"Failed to save deck:\n{e}")
-
-    def load_selected_deck(self, index):
-        if index < 0:
+                
+    def load_selected_deck_by_name(self, index):
+        """Load deck using combo box current text (EDOPro style)"""
+        name = self.deck_name_input.currentText().strip()
+        if not name:
             return
-        name = self.deck_dropdown.currentText()
+
         path = self.deck_file_path(name)
         if not os.path.exists(path):
             return
+
         try:
             with open(path, "r", encoding="utf-8") as f:
                 data = json.load(f)
             self.deck.main = Counter(data.get("main", {}))
             self.deck.triggers = Counter(data.get("triggers", {}))
-            self.deck_name_input.setText(name)
             self.refresh_deck_lists()
         except Exception as e:
             QMessageBox.critical(self, "Error", f"Failed to load deck '{name}':\n{e}")
+
+
             
     def export_current_deck_to_sheets(self):
         if not self.deck.main and not self.deck.triggers:
@@ -428,6 +620,10 @@ class Editor(QMainWindow):
             csel = self.filter_clan.currentText()
             if csel != "Any Clan" and card.get("clan","") != csel:
                 return False
+            # --- Set filter ---
+            ssel = self.filter_set.currentText()
+            if ssel != "Any Set" and card.get("set","") != ssel:
+                return False
             return True
 
 
@@ -443,6 +639,29 @@ class Editor(QMainWindow):
 
         # Load the first batch (e.g. 50 cards)
         self.load_more_cards()
+        
+    def refresh_gallery_item(self, image_path):
+        pm = self.pixmap_cache.get(image_path)
+        if not pm:
+            return
+
+        # Loop through gallery items and update any that match this image
+        for i in range(self.gallery.count()):
+            item = self.gallery.item(i)
+            card_name = item.data(Qt.UserRole)
+            card = self.card_db[card_name]
+            if card.get("image") == image_path:
+                widget = self.gallery.itemWidget(item)
+                if widget:
+                    # Find the first QLabel in the HBox (your image label)
+                    img_label = widget.findChild(QLabel)
+                    if img_label:
+                        pm_scaled = pm.scaled(
+                            GALLERY_ICON_W, GALLERY_ICON_H,
+                            Qt.KeepAspectRatio, Qt.SmoothTransformation
+                        )
+                        img_label.setPixmap(pm_scaled)
+
 
     def gallery_double_click(self, item):   # ✅ now a real method
         name = item.data(Qt.UserRole)
@@ -453,21 +672,42 @@ class Editor(QMainWindow):
             QMessageBox.warning(self, "Cannot add", msg)
             return
         self.refresh_deck_lists()
-    
+
     def remove_on_right_click(self, list_widget, section, pos):
         item = list_widget.itemAt(pos)
         if not item:
             return
-        name = item.text()
+        name = item.data(Qt.UserRole)  # ✅ use UserRole, not item.text()
         if self.deck.remove(section, name):
             self.refresh_deck_lists()
-            
+                
     def load_more_cards(self):
-        next_count = min(self.loaded_count + self.batch_size, len(self.filtered_cache))
-        for i in range(self.loaded_count, next_count):
-            card = self.filtered_cache[i]
+        start = self.loaded_count
+        end = min(start + self.batch_size, len(self.filtered_cache))  # use filtered_cache
+
+        for card in self.filtered_cache[start:end]:
+            # Try to get a valid path; skip if invalid
+            path = self.get_card_image(card.get("image", ""))
+            if not path:
+                continue  # skip this card
+
             self.add_card_to_gallery(card)
-        self.loaded_count = next_count
+
+            # Prefetch current batch if not already cached
+            if path not in self.pixmap_cache and path.startswith("http"):
+                threading.Thread(target=lambda p=path: self.download_image(p), daemon=True).start()
+
+        self.loaded_count = end
+
+
+        # 🔮 Lookahead: prefetch next batch
+        prefetch_end = min(end + self.batch_size, len(self.filtered_cache))
+        for card in self.filtered_cache[end:prefetch_end]:
+            img_path = card.get("image", "")
+            if img_path and img_path not in self.pixmap_cache:
+                threading.Thread(target=lambda p=img_path: self.download_image(p), daemon=True).start()
+
+
 
     def check_scroll(self, value):
         sb = self.gallery.verticalScrollBar()
@@ -476,12 +716,17 @@ class Editor(QMainWindow):
                 self.load_more_cards()
                 
     def add_card_to_gallery(self, card):
-        path = self.get_card_image(card.get("image", ""))
-        pm = self.pixmap_cache.get(path) or get_cached_pixmap(path)
-        self.pixmap_cache[path] = pm
+        path = self.get_card_image(card.get("image", ""))  # string path
+        pm = self.pixmap_cache.get(path)
 
-        pm_scaled = pm.scaled(GALLERY_ICON_W, GALLERY_ICON_H,
-                              Qt.KeepAspectRatio, Qt.SmoothTransformation)
+        if pm is None:  # not cached yet
+            pm = get_cached_pixmap(path)
+            self.pixmap_cache[path] = pm  # cache by path
+
+        pm_scaled = pm.scaled(
+            GALLERY_ICON_W, GALLERY_ICON_H,
+            Qt.KeepAspectRatio, Qt.SmoothTransformation
+        )
 
         widget = QWidget()
         h_layout = QHBoxLayout(widget)
@@ -493,29 +738,77 @@ class Editor(QMainWindow):
         h_layout.addWidget(img_label)
 
         v_layout = QVBoxLayout()
+
+        # Card name
         name_label = QLabel(f"<b>{card['name']}</b>")
         name_label.setWordWrap(True)
         v_layout.addWidget(name_label)
 
-        effect_text = card.get("effect", "No effects")
-        if isinstance(effect_text, list):
-            effect_text = "\n".join(effect_text)
-        effects_label = QLabel(effect_text)
-        effects_label.setWordWrap(True)
-        effects_label.setAlignment(Qt.AlignTop)
-        v_layout.addWidget(effects_label)
+        # Clan label
+        if "clan" in card and card["clan"]:
+            clan_label = QLabel(f"Clan: {card['clan']}")
+            clan_label.setStyleSheet("color: darkblue; font-style: italic;")
+            v_layout.addWidget(clan_label)
+
+        # Power + Shield section
+        stats_text = []
+        if "power" in card and card["power"]:
+            stats_text.append(f"Power: {card['power']}")
+        if "shield" in card and card["shield"]:
+            stats_text.append(f"Shield: {card['shield']}")
+
+        if stats_text:
+            stats_label = QLabel(" | ".join(stats_text))
+            stats_label.setStyleSheet("color: gray;")  # optional styling
+            v_layout.addWidget(stats_label)
 
         h_layout.addLayout(v_layout)
 
+
         it = QListWidgetItem()
         it.setSizeHint(widget.sizeHint())
-        it.setData(Qt.UserRole, card["name"])
+        it.setData(Qt.UserRole, card["name"])  # still referencing the name
         it.setToolTip(self.card_tooltip(card))
         self.gallery.addItem(it)
         self.gallery.setItemWidget(it, widget)
+
+
+    def preload_all_images(self):
+        def worker():
+            for card in self.card_db.values():
+                img_path = card.get("image", "")
+                if not img_path:
+                    continue
+
+                local_path = os.path.join("", img_path)
+                os.makedirs(os.path.dirname(local_path), exist_ok=True)
+
+                # Skip if already exists
+                if not os.path.exists(local_path):
+                    remote_url = REMOTE_BASE + img_path
+                    try:
+                        r = requests.get(remote_url)
+                        r.raise_for_status()
+                        with open(local_path, "wb") as f:
+                            f.write(r.content)
+                    except Exception as e:
+                        print(f"⚠️ Failed to download {remote_url}: {e}")
+                        continue
+
+                # Load pixmap and cache
+                if img_path not in self.pixmap_cache:
+                    pm = get_cached_pixmap(local_path)
+                    self.pixmap_cache[img_path] = pm
+
+                # Schedule UI update on main thread
+                QTimer.singleShot(0, lambda path=img_path: self.refresh_gallery_item(path))
+
+        threading.Thread(target=worker, daemon=True).start()
+
         
 
     def get_card_image(self, image_path, local_base=""):
+        """Return a local file path for a card image, downloading it if missing."""
         local_path = os.path.join(local_base, image_path)
         os.makedirs(os.path.dirname(local_path), exist_ok=True)
 
@@ -523,55 +816,96 @@ class Editor(QMainWindow):
             remote_url = REMOTE_BASE + image_path
             print(f"Downloading missing card image: {remote_url}")
             try:
-                import requests
                 r = requests.get(remote_url)
                 r.raise_for_status()
                 with open(local_path, "wb") as f:
                     f.write(r.content)
             except Exception as e:
                 print(f"⚠️ Failed to download {remote_url}: {e}")
-                return "placeholder.png"
+                return "cardimg/placeholder.png"
 
-        return local_path
+        return local_path  # 🔒 always a string
 
 
+
+    def download_image(self, image_path):
+        local_path = os.path.join("", image_path)
+        os.makedirs(os.path.dirname(local_path), exist_ok=True)
+
+        if not os.path.exists(local_path):
+            remote_url = REMOTE_BASE + image_path
+            print(f"Downloading missing card image: {remote_url}")
+            try:
+                r = requests.get(remote_url)
+                r.raise_for_status()
+                with open(local_path, "wb") as f:
+                    f.write(r.content)
+            except Exception as e:
+                print(f"⚠️ Failed to download {remote_url}: {e}")
+                return
+
+        # ✅ After download, schedule GUI update in the main thread
+        QTimer.singleShot(0, self.refresh_gallery)
 
     # --- Deck lists ---
     def refresh_deck_lists(self):
         self.main_list.clear()
-        
-        
+
         for name, cnt in self.deck.main.items():
-            pm = get_cached_pixmap(self.get_card_image(self.card_db[name].get("image", "")))
+            img_path = self.get_card_image(self.card_db[name].get("image", ""))
+            pm = self.pixmap_cache.get(img_path)
+
+            if pm is None:
+                pm = get_cached_pixmap(img_path)
+                self.pixmap_cache[img_path] = pm
+                
+            pm_scaled = pm.scaled(MAIN_GRID_W, MAIN_GRID_H,
+                                Qt.KeepAspectRatio, Qt.SmoothTransformation)
+            icon = QIcon(pm_scaled)
+
             icon = QIcon(pm)
             for _ in range(cnt):
-                it = QListWidgetItem(icon, name)
+                it = QListWidgetItem(icon, "")
+                it.setData(Qt.UserRole, name)
                 it.setToolTip(self.card_tooltip(self.card_db[name]))
+                it.setSizeHint(QSize(70, 100))   # Match grid size
                 self.main_list.addItem(it)
-                
-        grade_counts = {0:0, 1:0, 2:0, 3:0}
-        
+
+        grade_counts = {0: 0, 1: 0, 2: 0, 3: 0}
         for name, cnt in self.deck.main.items():
             grade = int(self.card_db[name].get("grade", 0))
             if grade in grade_counts:
                 grade_counts[grade] += cnt
 
-        self.grade1_label.setText(f"Grade 0 ({grade_counts[0]})")
+        self.grade0_label.setText(f"Grade 0 ({grade_counts[0]})")
         self.grade1_label.setText(f"Grade 1 ({grade_counts[1]})")
         self.grade2_label.setText(f"Grade 2 ({grade_counts[2]})")
         self.grade3_label.setText(f"Grade 3 ({grade_counts[3]})")
 
         self.trig_list.clear()
         for name, cnt in self.deck.triggers.items():
-            pm = get_cached_pixmap(self.card_db[name].get("image", ""))
+            img_path = self.get_card_image(self.card_db[name].get("image", ""))
+            pm = self.pixmap_cache.get(img_path)
+
+            if pm is None:
+                pm = get_cached_pixmap(img_path)
+                self.pixmap_cache[img_path] = pm
+                
+            pm_scaled = pm.scaled(MAIN_GRID_W, MAIN_GRID_H,
+                                Qt.KeepAspectRatio, Qt.SmoothTransformation)
+            icon = QIcon(pm_scaled)
+
             icon = QIcon(pm)
             for _ in range(cnt):
-                it = QListWidgetItem(icon, name)
+                it = QListWidgetItem(icon, "")
+                it.setData(Qt.UserRole, name)
                 it.setToolTip(self.card_tooltip(self.card_db[name]))
+                it.setSizeHint(QSize(70, 100))   # Match grid size
                 self.trig_list.addItem(it)
 
         self.main_label.setText(f"Main ({self.deck.total_main()}/{MAIN_LIMIT})")
         self.trig_label.setText(f"Triggers ({self.deck.total_triggers()}/{TRIGGER_LIMIT})")
+
 
     def card_tooltip(self, card):
         return (
