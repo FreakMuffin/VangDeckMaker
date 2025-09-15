@@ -19698,7 +19698,7 @@
     "clan": "Oracle Think Tank",
     "type": "",
     "set": "E7",
-    "image": "https://static.wikia.nocookie.net/cardfight/images/e/e3/EB07-001EN-RRR.jpg/revision/latest",
+    "image": "cardimg/E7/1550.png",
     "effect": [
       "[AUTO] Limit Break 4 (This ability is active if you have four or more damage) :When an « Oracle Think Tank » rides this unit, look at three cards from the top of your deck, search for one card from among them, put it into your hand, put the rest on the top of your deck in any order, and choose your vanguard, and that unit gets [Power]+10000 until end of turn.",
       "[CONT](VC):During your turn, if the number of cards in your hand is four or greater, this unit gets [Power]+2000.",
@@ -19713,7 +19713,7 @@
     "clan": "Oracle Think Tank",
     "type": "",
     "set": "E7",
-    "image": "https://static.wikia.nocookie.net/cardfight/images/9/9a/EB07-002EN-RRR.jpg/revision/latest",
+    "image": "cardimg/E7/1551.png",
     "effect": [
       "[CONT](VC) Limit Break 4 (This ability is active if you have four or more damage) :During your turn, if the number of cards in your hand is four or greater, this unit gets [Power]+3000 and \"",
       "[AUTO](VC):When this unit's attack hits a vanguard, draw a card.\" .",
@@ -19729,7 +19729,7 @@
     "clan": "Oracle Think Tank",
     "type": "",
     "set": "E7",
-    "image": "https://static.wikia.nocookie.net/cardfight/images/b/b9/EB07-003EN-RR.jpg/revision/latest",
+    "image": "cardimg/E7/1552.png",
     "effect": [
       "[ACT](VC) Limit Break 4 (This ability is active if you have four or more damage) :[Counter Blast (1) & Choose a card named \"Battle Sister, Monaka\" from your hand, and discard it] Look at five cards from the top of your deck, search for two cards from among them, put them into your hand, and put the rest on the bottom of your deck in any order.",
       "[ACT](VC):[Counter Blast (2)-card with \" Battle Sister \" in its card name] This unit gets [Power]+5000 until end of turn.",
@@ -19744,7 +19744,7 @@
     "clan": "Oracle Think Tank",
     "type": "",
     "set": "E7",
-    "image": "https://static.wikia.nocookie.net/cardfight/images/6/69/EB07-004EN-RR.jpg/revision/latest",
+    "image": "cardimg/E7/1553.png",
     "effect": [
       "[AUTO](VC/RC):[Counter Blast (1)] When this unit attacks a vanguard, if you have an « Oracle Think Tank » vanguard, you may pay the cost. If you do, declare an «Oracle Think Tank» card name, and reveal the top card of your deck. If the revealed card is the card you declared, put that card into your hand, and if it is not, choose a card from your damage zone, and turn it face up."
     ],
@@ -19758,7 +19758,7 @@
     "clan": "Oracle Think Tank",
     "type": "",
     "set": "E7",
-    "image": "https://static.wikia.nocookie.net/cardfight/images/a/ae/EB07-005EN-RR.jpg/revision/latest",
+    "image": "cardimg/E7/1554.png",
     "effect": [
       "[AUTO](VC/RC):[Counter Blast (1)-card with \" Battle Sister \" in its card name] When this unit's attack hits a vanguard, if you have an « Oracle Think Tank » vanguard, you may pay the cost. If you do, look at the top card of your deck, search for up to one card with \"Battle Sister\" in its card name from among them, reveal it to your opponent, put it into your hand, and put the rest on the bottom of your deck."
     ],
@@ -19772,7 +19772,7 @@
     "clan": "Oracle Think Tank",
     "type": "",
     "set": "E7",
-    "image": "https://static.wikia.nocookie.net/cardfight/images/5/5c/EB07-006EN-RR.jpg/revision/latest",
+    "image": "cardimg/E7/1555.png",
     "effect": [
       "[ACT](RC):[Soul Blast (1)] If you have an « Oracle Think Tank » vanguard, draw a card, and put this unit on the top of your deck."
     ],
@@ -19786,7 +19786,7 @@
     "clan": "Oracle Think Tank",
     "type": "",
     "set": "E7",
-    "image": "https://static.wikia.nocookie.net/cardfight/images/9/96/EB07-007EN-RR.jpg/revision/latest",
+    "image": "cardimg/E7/1556.png",
     "effect": [
       "[CONT]: Sentinel (You may only have up to four cards with \"",
       "[CONT]:Sentinel\" in a deck.)",
@@ -19802,7 +19802,7 @@
     "clan": "Oracle Think Tank",
     "type": "",
     "set": "E7",
-    "image": "https://static.wikia.nocookie.net/cardfight/images/b/b4/EB07-008EN-R.jpg/revision/latest",
+    "image": "cardimg/E7/1557.png",
     "effect": [
       "[CONT](VC/RC): Restraint (This unit cannot attack.)",
       "[ACT](VC/RC):[Counter Blast (1) & Choose another of your « Oracle Think Tank » rear-guards, and put it into your soul] This unit loses \"Restraint\" until end of turn.",
@@ -19817,7 +19817,7 @@
     "clan": "Oracle Think Tank",
     "type": "",
     "set": "E7",
-    "image": "https://static.wikia.nocookie.net/cardfight/images/e/e1/EB07-010EN-R.jpg/revision/latest",
+    "image": "cardimg/E7/1558.png",
     "effect": [
       "[AUTO](VC/RC):[Counter Blast (1)] When this unit's attack hits a vanguard, you may pay the cost. If you do, look at up to five cards from the top of your deck, search for up to one grade 3 or greater « Oracle Think Tank » from among them, reveal it to your opponent, put it into your hand, and shuffle your deck."
     ],
@@ -19831,7 +19831,7 @@
     "clan": "Oracle Think Tank",
     "type": "",
     "set": "E7",
-    "image": "https://static.wikia.nocookie.net/cardfight/images/9/90/EB07-011EN-R.jpg/revision/latest",
+    "image": "cardimg/E7/1559.png",
     "effect": [
       "[AUTO](RC):When this unit attacks, if you have a vanguard with \" Magus \" in its card name, this unit gets [Power]+3000 until end of that battle."
     ],
@@ -19845,7 +19845,7 @@
     "clan": "Oracle Think Tank",
     "type": "",
     "set": "E7",
-    "image": "https://static.wikia.nocookie.net/cardfight/images/c/c7/EB07-012EN-R.jpg/revision/latest",
+    "image": "cardimg/E7/1560.png",
     "effect": [
       "[AUTO](RC):When this unit attacks, if you have a vanguard with \" Battle Sister \" in its card name, this unit gets [Power]+3000 until end of that battle."
     ],
@@ -19859,7 +19859,7 @@
     "clan": "Oracle Think Tank",
     "type": "",
     "set": "E7",
-    "image": "https://static.wikia.nocookie.net/cardfight/images/d/d7/EB07-013EN-R.jpg/revision/latest",
+    "image": "cardimg/E7/1561.png",
     "effect": [
       "[AUTO](VC/RC):[Choose an « Oracle Think Tank » from your hand, and discard it] When this unit attacks, you may pay the cost. If you do, this unit gets [Power]+5000 until end of that battle."
     ],
@@ -19873,7 +19873,7 @@
     "clan": "Oracle Think Tank",
     "type": "",
     "set": "E7",
-    "image": "https://static.wikia.nocookie.net/cardfight/images/3/3c/EB07-014EN-R.jpg/revision/latest",
+    "image": "cardimg/E7/1562.png",
     "effect": [
       "[AUTO](RC):When this unit boosts a « Oracle Think Tank », if you have an «Oracle Think Tank» vanguard, declare an «Oracle Think Tank» card name, and reveal the top card of your deck. If the revealed card is the card you declared, the boosted unit gets [Power]+3000 until end of that battle."
     ],
@@ -19887,7 +19887,7 @@
     "clan": "Oracle Think Tank",
     "type": "",
     "set": "E7",
-    "image": "https://static.wikia.nocookie.net/cardfight/images/0/04/EB07-016EN-C.jpg/revision/latest",
+    "image": "cardimg/E7/1563.png",
     "effect": [
       "[AUTO](VC/RC):When this unit attacks a vanguard, if you have an « Oracle Think Tank » vanguard, this unit gets [Power]+2000 until end of that battle."
     ],
@@ -19900,7 +19900,7 @@
     "clan": "Oracle Think Tank",
     "type": "",
     "set": "E7",
-    "image": "https://static.wikia.nocookie.net/cardfight/images/6/62/EB07-017EN-C.jpg/revision/latest",
+    "image": "cardimg/E7/1564.png",
     "effect": [],
     "power": 10000,
     "shield": 5000
@@ -19912,7 +19912,7 @@
     "clan": "Oracle Think Tank",
     "type": "",
     "set": "E7",
-    "image": "https://static.wikia.nocookie.net/cardfight/images/6/6f/EB07-018EN-C.jpg/revision/latest",
+    "image": "cardimg/E7/1565.png",
     "effect": [
       "[AUTO]:[Counter Blast (1)] When this unit is placed on (VC) or (RC), if you have an « Oracle Think Tank » vanguard,you may pay the cost. If you do, put the top card of your deck into your damage zone, and at the end of that turn, choose a card from your damage zone, return it to your deck, and shuffle your deck."
     ],
@@ -19926,7 +19926,7 @@
     "clan": "Oracle Think Tank",
     "type": "",
     "set": "E7",
-    "image": "https://static.wikia.nocookie.net/cardfight/images/9/92/EB07-019EN-C.jpg/revision/latest",
+    "image": "cardimg/E7/1566.png",
     "effect": [
       "[AUTO](VC/RC):[Soul Blast (2)] When this unit's attack hits a vanguard, if you have an « Oracle Think Tank » vanguard, you may pay the cost. If you do, draw a card."
     ],
@@ -19940,7 +19940,7 @@
     "clan": "Oracle Think Tank",
     "type": "",
     "set": "E7",
-    "image": "https://static.wikia.nocookie.net/cardfight/images/f/f2/EB07-020EN-C.jpg/revision/latest",
+    "image": "cardimg/E7/1567.png",
     "effect": [
       "[AUTO](VC/RC):When this unit attacks, if the number of cards in your hand is greater than your opponent's, this unit gets [Power]+3000 until end of that battle."
     ],
@@ -19954,7 +19954,7 @@
     "clan": "Oracle Think Tank",
     "type": "",
     "set": "E7",
-    "image": "https://static.wikia.nocookie.net/cardfight/images/3/3a/EB07-023EN-C.jpg/revision/latest",
+    "image": "cardimg/E7/1568.png",
     "effect": [
       "[AUTO](RC):When this unit attacks, if you have an « Oracle Think Tank » vanguard, and you do not have any cards in your soul, this unit gets [Power]+3000 until end of that battle."
     ],
@@ -19968,7 +19968,7 @@
     "clan": "Oracle Think Tank",
     "type": "",
     "set": "E7",
-    "image": "https://static.wikia.nocookie.net/cardfight/images/9/9e/EB07-024EN-C.jpg/revision/latest",
+    "image": "cardimg/E7/1569.png",
     "effect": [
       "[AUTO](RC):When this unit attacks, if you have a vanguard with \" Magus \" in its card name, this unit gets [Power]+3000 until end of that battle."
     ],
@@ -19982,7 +19982,7 @@
     "clan": "Oracle Think Tank",
     "type": "",
     "set": "E7",
-    "image": "https://static.wikia.nocookie.net/cardfight/images/8/84/EB07-025EN-C.jpg/revision/latest",
+    "image": "cardimg/E7/1570.png",
     "effect": [
       "[AUTO](VC/RC):When this unit attacks, if the number of cards in your hand is four or more, this unit gets [Power]+3000 until end of that battle."
     ],
@@ -19996,7 +19996,7 @@
     "clan": "Oracle Think Tank",
     "type": "",
     "set": "E7",
-    "image": "https://static.wikia.nocookie.net/cardfight/images/1/13/EB07-026EN-C.jpg/revision/latest",
+    "image": "cardimg/E7/1571.png",
     "effect": [
       "[AUTO](RC):[Choose a card from your hand, and discard it] When an attack hits during the battle that this unit boosted, you may pay the cost. If you do, draw a card."
     ],
@@ -20010,7 +20010,7 @@
     "clan": "Oracle Think Tank",
     "type": "",
     "set": "E7",
-    "image": "https://static.wikia.nocookie.net/cardfight/images/5/56/EB07-027EN-C.jpg/revision/latest",
+    "image": "cardimg/E7/1572.png",
     "effect": [
       "[AUTO]:[Soul Blast (2)] When this unit is placed on (RC), if you have an « Oracle Think Tank » vanguard, you may pay the cost. If you do, choose up to two cards from your damage zone, and turn them face up."
     ],
@@ -20024,7 +20024,7 @@
     "clan": "Oracle Think Tank",
     "type": "Draw",
     "set": "E7",
-    "image": "https://static.wikia.nocookie.net/cardfight/images/7/7e/EB07-031EN-C.jpg/revision/latest",
+    "image": "cardimg/E7/1573.png",
     "effect": [],
     "power": 5000,
     "shield": 5000
@@ -20036,7 +20036,7 @@
     "clan": "Oracle Think Tank",
     "type": "Stand",
     "set": "E7",
-    "image": "https://static.wikia.nocookie.net/cardfight/images/b/ba/EB07-032EN-C.jpg/revision/latest",
+    "image": "cardimg/E7/1574.png",
     "effect": [],
     "power": 5000,
     "shield": 10000
@@ -20048,7 +20048,7 @@
     "clan": "Oracle Think Tank",
     "type": "Heal",
     "set": "E7",
-    "image": "https://static.wikia.nocookie.net/cardfight/images/9/9b/EB07-033EN-C.jpg/revision/latest",
+    "image": "cardimg/E7/1575.png",
     "effect": [
       "(You may only have up to four cards with \"HEAL\" in a deck .)"
     ],
